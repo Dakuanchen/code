@@ -1,0 +1,457 @@
+ Lesson07--05--树之霍夫曼树(Huffman)
+【本节目标】
+1、基本概念
+2、HuffmanTree构造算法
+3、Huffman编码
+4、完成文件压缩
+基本概念
+在一棵二叉树中：
+定义从A结点到B结点所经过的分支序列为从A结点到B结点的路径。
+定义从A结点到B结点所经过的分支个数为从A结点到B结点的路径长度。
+从二叉树的根节点到二叉树中所有节点的路径长度之和为该二叉树的路径长度。
+由树的定义可知：从树的根节点到达树中每一结点有且仅有一条路径。 若设树的根节点处
+于第1层，某节点处于第k层，因为从根节点到达该结点的路径上的分支数为k-1，所以从根节
+点到其他各个结点的路径长度等于该节点所处的层次k-1.
+PL1 = 0 + 1 + 1 + 2 + 2+ 2 + 2 + 3 = 13
+PL2 = 0 + 1 + 1 + 2 + 2+ 2 + 3 + 3 = 14
+因此：n个结点的二叉树的路径长度不小于类似PL1数列的前n项和。
+Huffman树
+假设给定一个有n个权值的集合{w1,w2,w3,…,wn},其中wi>0(1<=i<=n)。若T是一棵有n个
+叶结点的二叉树，而且将权值w1,w2,w3…wn分别赋值给T的n个叶结点，则称T是权值为
+w1,w2,w3…wn的扩充二叉树。带有权值的叶节点叫着扩充二叉树的外结点，其余不带权值
+的分支结点叫做内结点。外结点的带权路径长度为T的根节点到该结点的路径长度与该结
+点上的权值的乘积。n个外结点的扩充二叉树的带权路径长度为：
+这4棵二叉树的路径长度分别为：
+(a) WPL = 1*2 + 3*2 + 5*2 + 7*2 = 32
+(b) WPL = 1*2 + 3*3 + 5*3 + 7*1 = 33
+(c) WPL = 7*3 + 5*3 + 3*2 + 1*1 = 43
+(d) WPL = 1*3 + 3*3 + 5*2 + 7*1 = 29
+带权路径长度最小的扩充二叉树不一定是完全二叉树。
+带权值路径长度最小的扩充二叉树应是权值大的外结点距离根节点最近的扩充二叉树，该
+树即为Huffman树。
+构造Huffman树
+Huffman树构造算法：
+1、由给定的n个权值{w1,w2,w3,…,wn}构造n棵只有根节点的扩充二叉树森林F=
+{T1,T2,T3,…,Tn},其中每棵扩充二叉树Ti只有一个带权值wi的根节点，左右孩子均为
+空。
+2、重复以下步骤，直到F中只剩下一棵树为止：
+a、在F中选取两棵根节点的权值最小的扩充二叉树，作为左右子树构造一棵新的二
+叉树。将新二叉树的根节点的权值为其左右子树上根节点的权值之和。
+b、在F中删除这两棵二叉树；
+c、把新的二叉树加入到F中；
+最后得到的就是Huffman树。
+Huffman编码
+在数据通讯中经常需要将传输的文字转换成二进制字符0和1组成的二进制串，称该过程为编
+码。
+假设需要传输ABBBCCCCCDDDDDDD，电文中只有4中字符，可有如下的编码方案：
+注意：在建立不等长编码时，必须是任何一个字符的编码不能是另一个字符编码的前缀，
+这样才能保证译码的唯一性。
+任何一个字符的huffman编码都不可能是另一个字符的huffman编码的前缀。
+文件压缩
+
+#define _CRT_SECURE_NO_WARNINGS 1
+#pragma once
+#include "heap.hpp"
+#include <vector>
+#include <stack>
+#include <memory>
+#include <stdio.h>
+
+template<class T ,class W=long long>
+struct Node
+{
+	Node(const W& weight, const T data = T())
+		: _weight(weight)
+		, _pLeft(NULL)
+		, _pRight(NULL)
+		, _pParent(NULL)
+		, _data(data)
+	{}
+
+	Node<T>* _pLeft;
+	Node<T>* _pRight;
+	Node<T>* _pParent;
+	W _weight; 
+	T _data;
+	vector<char> coding;
+
+};
+
+template<class T, class W = long long>
+class HuffmanTree
+{
+public:
+	HuffmanTree()
+		: _pRoot(NULL)
+	{}
+
+	HuffmanTree(const W array[], size_t size)
+	{
+		_array.resize(256);
+		_Create(array, size);
+	}
+
+	~HuffmanTree()
+	{
+		Destory(_pRoot);
+	}
+
+	void HuffmanCoding()
+	{
+		for (size_t i = 0; i < 256; i++)
+		{
+			GetWay(_array[i]);
+		}
+	}
+
+	size_t CompressedFile(FILE* readfile, FILE* writefile)
+	{
+		int i = 0;
+		long count = 0;
+		long count1 = 0;
+		unsigned char num = 0;
+		unsigned char ch;
+		while ((count1 < _pRoot->_weight) && (ch = fgetc(readfile)) != EOF)
+		{
+			count1++;
+			int index = _array[ch]->coding.size();
+			while (--index >= 0)
+			{
+				if (_array[ch]->coding[index] == '0')
+				{
+					num <<= 1;
+					i++;
+					if (i == 8)
+					{
+						count++;
+						fputc(num, writefile);
+						i = 0;
+						num = 0;
+					}
+				}
+				else
+				{
+					num <<= 1;
+					num |= 1;
+					i++;
+					if (i == 8)
+					{
+						count++;
+						fputc(num, writefile);
+						i = 0;
+						num = 0;
+					}
+				}
+			}
+		}
+
+		if (i < 8)
+		{
+			num <<= (8 - 1);
+		}
+		fputc(num, writefile);
+		count++;
+		return count;
+	}
+
+	unsigned char* CompressedFile(const T str[],long& count)
+	{
+		unsigned char* p = new unsigned char[100];
+		int i = 0;
+		//long count = 0;
+		unsigned char num = 0;
+		while (*str)
+		{
+			int index = _array[*str]->coding.size();
+			while (--index >= 0)
+			{
+				if (_array[*str]->coding[index] == '0')
+				{
+					if (i == 8 && count < 100)
+					{
+						p[count++] = num;
+						i = 0;
+						num = 0;
+					}
+					num <<= 1;
+					i++;
+				}
+				else
+				{
+					if (i == 8 && count < 100)
+					{
+						p[count++] = num;
+						i = 0;
+						num = 0;
+					}
+					num <<= 1;
+					num |= 1;
+					i++;
+				}
+			}
+			str++;
+		}
+		if (count < 100)
+		{
+			num <<= (8 - i);
+			p[count++] = num;
+		}
+		cout << "count = " << count << endl;
+		return p;
+	}
+
+	void DecompressedFile(const T* p,size_t size,size_t chcount)
+	{
+		unsigned char ch;
+		size_t count = 0;
+		size_t index = 0;
+		char str[10] = { 0 };
+		ch = p[count++];
+		DecToBin(str, ch);
+		size_t i = 0;
+		do
+		{
+			Node<T>* root = _pRoot;
+			while (NULL != root->_pLeft || NULL != root->_pRight)
+			{
+				if (i < 8)
+				{
+					if (str[i] == 1)
+						root = root->_pRight;
+					else
+						root = root->_pLeft;
+					i++;
+				}
+				else
+				{
+					i = 0;
+					ch = p[count++];
+					DecToBin(str, ch);
+				}
+			}
+
+			cout << root->_data ;
+			index++;
+
+		} while (count<size || index < chcount);
+		cout << endl;
+		delete[] p;
+	}
+
+	void DecompressedFile(FILE* readfile,size_t readsize, FILE* writefile ,size_t writesize)
+	{
+		unsigned char ch;
+		size_t readcount = 0;
+		size_t writecount = 0;
+		char str[10] = { 0 };
+		ch = fgetc(readfile);
+		readcount++;
+		DecToBin(str, ch);
+		size_t i = 0;
+		do 
+		{
+			Node<T>* root = _pRoot;
+			while (NULL != root->_pLeft || NULL != root->_pRight)
+			{
+				if (i < 8)
+				{
+					if (str[i] == 1)
+						root = root->_pRight;
+					else
+						root = root->_pLeft;
+					i++;
+				}
+				else
+				{
+					i = 0;
+					ch = fgetc(readfile);
+					if (ch==EOF)
+					{
+						return;
+					}
+					readcount++;
+					DecToBin(str, ch);
+				}
+			}
+
+			fputc(root->_data, writefile);
+			writecount++;
+
+		} while (1);
+	}
+
+protected:
+
+	void DecToBin(char str[], unsigned char ch)
+	{
+		memset(str, 0, 10);
+
+		stack<char> s;
+		if (ch == 0)
+		{
+			return;
+		}
+		while (ch)
+		{
+			char n = ch % 2;
+			s.push(n);
+			ch /= 2;
+		}
+		int i = 8 - s.size();
+		while (!s.empty())
+		{
+			str[i++] = s.top();
+			s.pop();
+		}
+ 	}
+
+	void Destory(Node<T>* pRoot)
+	{
+		for (size_t i = 0; i < 256; i++)
+		{
+			delete _array[i];
+		}
+	}
+
+	struct Compare
+	{
+		bool operator()(const Node<T>* pLeft, const Node<T>* pRight)
+		{
+			return pLeft->_weight < pRight->_weight;
+		}
+	};
+
+	void GetWay(Node<T>* child)
+	{
+		Node<T>* ch = child;
+		Node<T>* pParent = ch->_pParent;
+		while (NULL != pParent)
+		{
+			if (ch == pParent->_pLeft)
+			{
+				child->coding.push_back('0');
+			}
+			else
+			{
+				child->coding.push_back('1');
+			}
+
+			ch = pParent;
+			pParent = ch->_pParent;
+		}
+	}
+
+	void _Create(const W array[], size_t size)
+	{
+		Heap<Node<T>*,Compare> hp;
+		
+		for (size_t i = 0; i < size; i++)
+		{
+			Node<T>* ptmp = new Node<T>(array[i],i);
+			_array[i] = ptmp;
+			hp.Push(ptmp);
+		}
+
+		while (hp.Size()>1)
+		{
+			Node<T>* pLeft = hp.Top();
+			hp.Pop();
+			Node<T>* pRight = hp.Top();;
+			hp.Pop();
+			Node<T>* pParent = new Node<T>(pRight->_weight + pLeft->_weight);
+			pParent->_pLeft = pLeft;
+			pParent->_pRight = pRight;
+			pLeft->_pParent = pParent;
+			pRight->_pParent = pParent;
+			hp.Push(pParent);
+		}
+
+		_pRoot = hp.Top();
+	}
+
+protected:
+	vector<Node<T>*> _array;
+	Node<T>* _pRoot;
+};
+
+#define LONGEST 20
+
+void Test2()
+{
+	long long array[256] = { 0 };
+	char readfilename[LONGEST] = { "readfile.txt" };
+	//cout << "输入文件名并且文件名长度小于20" << endl;
+	//cin >> readfilename;
+	FILE* readfile = fopen(readfilename, "r");
+	if (readfile == NULL)
+	{
+		perror("readfile is:");
+		return;
+	}
+	
+	unsigned int ch;
+	size_t count1 = 0;
+	while ((ch = fgetc(readfile)) != EOF)
+	{
+		count1++;
+		array[ch]++;
+	}
+
+
+	cout << "count1 = " << count1 << endl;
+	//fseek(readfile, 0, SEEK_SET);
+	fclose(readfile);
+	readfile = fopen(readfilename, "r");
+	if (NULL == readfile)
+	{
+		perror("readfile is:");
+		return;
+	}
+
+	HuffmanTree<unsigned char> ht(array, 256);
+	ht.HuffmanCoding();
+	
+	FILE* writefile = fopen("CompressedFile.txt", "w");
+	if (NULL == writefile)
+	{
+		perror("writefile is :");
+		return;
+	}
+
+	size_t count = ht.CompressedFile(readfile, writefile);
+	fclose(readfile);
+	fclose(writefile);
+
+	readfile = fopen("CompressedFile.txt", "r");
+	if (NULL == readfile)
+	{
+		perror("readfile is:");
+		return;
+	}
+	writefile = fopen("DeCompressedFile.txt", "w");
+	if (NULL == writefile)
+	{
+		perror("writefile is :");
+		return;
+	}
+
+	ht.DecompressedFile(readfile,count,writefile,count1);
+
+	fclose(readfile);
+	fclose(writefile);
+}
+
+void test1()
+{
+	long long array[256] = { 0 };
+	unsigned char arr[] = { "aabbbccccddjbnaajffdnd  afaf" };
+	unsigned char*str = arr;
+
+	while (*str)
+		array[*str++]++;
+	long count = 0;
+	HuffmanTree<unsigned char> ht(array, 256);
+	ht.HuffmanCoding();
+	unsigned char* p = ht.CompressedFile(arr, count);
+	ht.DecompressedFile(p,count,sizeof(arr)-1);
+}
